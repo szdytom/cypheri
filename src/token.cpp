@@ -1,4 +1,4 @@
-#include "token.hpp"
+#include "cypheri/token.hpp"
 #include <cctype>
 #include <cstdlib>
 
