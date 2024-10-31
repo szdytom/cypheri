@@ -1,0 +1,7 @@
+Function onBoot()
+    Declare a, b, res;
+    a = 10;
+    b = 20;
+    res = a + b;
+    debug::print("10 + 20 = ", res);
+End
