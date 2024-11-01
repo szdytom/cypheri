@@ -1,15 +1,43 @@
 #include "cypheri/token.hpp"
 #include <cctype>
+#include <limits>
 #include <cstdlib>
 
 namespace cypheri {
 
 Token::Token(TokenType type, SourceLocation loc) noexcept : type(type), loc(loc) {}
-Token::Token(TokenType type, SourceLocation loc, uint64_t value) noexcept : type(type), loc(loc), value(value) {}
-Token::Token(TokenType type, SourceLocation loc, double value) noexcept : type(type), loc(loc), value(value) {}
-Token::Token(TokenType type, SourceLocation loc, std::string_view str) noexcept : type(type), loc(loc), value(std::string(str)) {}
-Token::Token(TokenType type, SourceLocation loc, std::string&& str) noexcept : type(type), loc(loc), value(std::move(str)) {}
-Token::Token(TokenType type, SourceLocation loc, const char *str) noexcept : type(type), loc(loc), value(std::string(str)) {}
+
+Token Token::from_integer(SourceLocation loc, uint64_t value) noexcept {
+	Token token(TK("(integer)"), loc);
+	token.integer = value;
+	return token;
+}
+
+Token Token::from_number(SourceLocation loc, double value) noexcept {
+	Token token(TK("(number)"), loc);
+	token.num = value;
+	return token;
+}
+
+Token Token::from_identifier(SourceLocation loc, NameIdType id) noexcept {
+	Token token(TK("(identifier)"), loc);
+	token.id = id;
+	return token;
+}
+
+Token Token::from_string(SourceLocation loc, size_t idx) noexcept {
+	Token token(TK("(string)"), loc);
+	token.str_idx = idx;
+	return token;
+}
+
+TokenizeResult TokenizeResult::from_error(SourceLocation loc, const char *msg) noexcept {
+	return TokenizeResult{
+		.error = SyntaxError(msg, loc)
+	};
+}
+
+namespace {
 
 class SourceStream {
 public:
@@ -236,8 +264,11 @@ TokenType match_keyword(std::string_view str) noexcept {
 	return TK("(error)");
 }
 
-std::vector<Token> tokenize(std::string_view source) noexcept {
-	std::vector<Token> tokens;
+} // namespace
+
+TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept {
+	TokenizeResult res;
+	auto &tokens = res.tokens;
 	SourceStream stream(source);
 
 	stream.skip_whitespace();
@@ -384,33 +415,37 @@ std::vector<Token> tokenize(std::string_view source) noexcept {
 			break;
 		case ':':
 			if (!stream.match(':')) {
-				tokens.emplace_back(TK("(error)"), loc, "Unexpected ':'");
+				return TokenizeResult::from_error(loc, "Expected '::'");
 			} else {
 				tokens.emplace_back(TK("::"), loc);
 			}
 			break;
 		case '"':
-			tokens.emplace_back(TK("(string)"), loc, stream.consumeString());
+			res.str_literals.push_back(stream.consumeString());
+			tokens.push_back(Token::from_string(loc, res.str_literals.size() - 1));
 			break;
 		default:
 			if (std::isdigit(c)) {
 				// TODO: handle hex, oct, and binary numbers, as well as floats
-				uint64_t val = 0;
+				uint64_t val = c - '0';
 				bool overflow = false;
-				do {
+				char x = stream.peek();
+				while (std::isdigit(x)) {
 					if (val > std::numeric_limits<uint64_t>::max() / 10) {
 						overflow = true;
 						break;
 					}
-					val = val * 10 + (c - '0');
-					if (stream.eof())
+					val = val * 10 + (x - '0');
+					stream.consume();
+					if (stream.eof()) {
 						break;
-					c = stream.consume();
-				} while (std::isdigit(c));
+					}
+					x = stream.peek();
+				}
 				if (overflow) {
-					tokens.emplace_back(TK("(error)"), loc, "Integer literal overflow");
+					return TokenizeResult::from_error(loc, "Integer literal overflow");
 				} else {
-					tokens.emplace_back(TK("(integer)"), loc, val);
+					tokens.push_back(Token::from_integer(loc, val));
 				}
 			} else if (std::isalpha(c) || c == '_') {
 				std::string_view id = stream.consumeIdentifier();
@@ -418,17 +453,17 @@ std::vector<Token> tokenize(std::string_view source) noexcept {
 				if (keyword != TK("(error)")) {
 					tokens.emplace_back(keyword, loc);
 				} else {
-					tokens.emplace_back(TK("(identifier)"), loc, id);
+					tokens.push_back(Token::from_identifier(loc, name_table.get_id_or_insert(id)));
 				}
 			} else {
-				tokens.emplace_back(TK("(error)"), loc, "Unexpected character");
+				return TokenizeResult::from_error(loc, "Unexpected character");
 			}
 		}
 		stream.skip_whitespace();
 	}
 
 	tokens.emplace_back(TK("(eof)"), stream.location());
-	return tokens;
+	return res;
 }
 
 } // namespace cypheri

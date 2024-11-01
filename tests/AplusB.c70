@@ -1,0 +1,11 @@
+Function add(a, b)
+	Return a + b;
+End
+
+Function onBoot()
+	Declare a, b, res;
+	a = 10;
+	b = 20;
+	res = add(a, b);
+	debug::print("10 + 20 = ", res);
+End

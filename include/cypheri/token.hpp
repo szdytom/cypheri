@@ -4,8 +4,12 @@
 #include <cstdint>
 #include <string_view>
 #include <vector>
-#include <variant>
+#include <optional>
 #include <string>
+#include <format>
+#include <exception>
+#include "cypheri/errors.hpp"
+#include "cypheri/nametable.hpp"
 
 namespace cypheri {
 
@@ -51,7 +55,7 @@ constexpr const char * TOKEN_TYPE_NAMES[] = {
 using TokenType = std::uint8_t;
 const TokenType TOKEN_COUNT = sizeof(TOKEN_TYPE_NAMES) / sizeof(TOKEN_TYPE_NAMES[0]);
 
-constexpr TokenType TK(const char name[]) noexcept {
+constexpr TokenType TK(const char name[]) {
 	for (int i = 0; i < TOKEN_COUNT; ++i) {
 		const char *x = TOKEN_TYPE_NAMES[i];
 		const char *y = name;
@@ -63,31 +67,39 @@ constexpr TokenType TK(const char name[]) noexcept {
 		if (*x == 0 && *y == 0)
 			return i;
 	}
-	return -1;
+	throw std::runtime_error(std::format("unknown token type: {}", name));
 }
 
 static_assert(TOKEN_COUNT == TK("(guard)") + 1, "TOKEN_COUNT is not correct");
-
-struct SourceLocation {
-	uint32_t line;
-	uint32_t column;
-};
 
 class Token {
 public:
 	TokenType type;
 	SourceLocation loc;
-	std::variant<std::monostate, uint64_t, double, std::string> value;
+	union {
+		uint64_t integer;
+		double num;
+		NameIdType id;
+		size_t str_idx;
+	};
 
-	Token(TokenType type, SourceLocation loc) noexcept;
-	Token(TokenType type, SourceLocation loc, uint64_t integer) noexcept;
-	Token(TokenType type, SourceLocation loc, double num) noexcept;
-	Token(TokenType type, SourceLocation loc, std::string_view str) noexcept;
-	Token(TokenType type, SourceLocation loc, std::string&& str) noexcept;
-	Token(TokenType type, SourceLocation loc, const char *str) noexcept;
+	Token(TokenType type, SourceLocation loc) noexcept; // monostate tokens
+
+	static Token from_integer(SourceLocation loc, uint64_t integer) noexcept;
+	static Token from_number(SourceLocation loc, double num) noexcept;
+	static Token from_identifier(SourceLocation loc, NameIdType id) noexcept;
+	static Token from_string(SourceLocation loc, size_t str_idx) noexcept;
 };
 
-std::vector<Token> tokenize(std::string_view source) noexcept;
+struct TokenizeResult {
+	std::vector<Token> tokens;
+	std::vector<std::string> str_literals;
+	std::optional<SyntaxError> error;
+
+	static TokenizeResult from_error(SourceLocation loc, const char *msg) noexcept;
+};
+
+TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept;
 
 } // namespace cypheri
 
