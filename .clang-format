@@ -1,0 +1,15 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Always
+---
+Language: Cpp
+ColumnLimit: 80
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+InsertBraces: true
+InsertNewlineAtEOF: true
+---
