@@ -1,28 +1,29 @@
 #ifndef CYPHERI_TOKEN_HPP
 #define CYPHERI_TOKEN_HPP
 
-#include <cstdint>
-#include <string_view>
-#include <vector>
-#include <optional>
-#include <string>
-#include <format>
-#include <exception>
 #include "cypheri/errors.hpp"
 #include "cypheri/nametable.hpp"
+#include <cstdint>
+#include <exception>
+#include <format>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace cypheri {
 
+/* clang-format off */
 constexpr const char * TOKEN_TYPE_NAMES[] = {
 	// special tokens
 	"(eof)", "(error)", "(identifier)",
 	// literal tokens
-	"(integer)", "(number)", "(string)", "(symbol)",
+	"(integer)", "(number)", "(string)",
 	// arithmetic operators
-	"+", "-", "*", "/", "%", "**", "//"
+	"+", "-", "*", "/", "%", "**", "//",
 	"+=", "-=", "*=", "/=", "%=", "**=", "//=",
 	"^", "&", "|", "~", "<<", ">>",
-	"^=", "&=", "|=", "~=", "<<=", ">>=",
+	"^=", "&=", "|=", "<<=", ">>=",
 	// comparison operators
 	"==", "!=", "<", ">", "<=", ">=",
 	// logical operators
@@ -35,14 +36,14 @@ constexpr const char * TOKEN_TYPE_NAMES[] = {
 	"Class", "Continue", "Catch",
 	"Declare", "Do",
 	"End", "Else", "ElseIf",
-	"Function", "For"
+	"FALSE", "Function", "For",
 	"If", "Import",
 	"Lambda",
 	"Module",
-	"New",
+	"New", "NULL",
 	"Return",
 	"While",
-	"Then", "Throw", "Typeof", "Try"
+	"Then", "Throw", "Typeof", "Try", "TRUE",
 	"_Yield",
 	// operators under builtin
 	"BuiltinPopcnt", "BuiltinCtz", "BuiltinClz",
@@ -51,9 +52,11 @@ constexpr const char * TOKEN_TYPE_NAMES[] = {
 	// end
 	"(guard)"
 };
+/* clang-format on */
 
 using TokenType = std::uint8_t;
-const TokenType TOKEN_COUNT = sizeof(TOKEN_TYPE_NAMES) / sizeof(TOKEN_TYPE_NAMES[0]);
+const TokenType TOKEN_COUNT =
+	sizeof(TOKEN_TYPE_NAMES) / sizeof(TOKEN_TYPE_NAMES[0]);
 
 constexpr TokenType TK(const char name[]) {
 	for (int i = 0; i < TOKEN_COUNT; ++i) {
@@ -64,8 +67,9 @@ constexpr TokenType TK(const char name[]) {
 			++y;
 		}
 
-		if (*x == 0 && *y == 0)
+		if (*x == 0 && *y == 0) {
 			return i;
+		}
 	}
 	throw std::runtime_error(std::format("unknown token type: {}", name));
 }
@@ -96,10 +100,12 @@ struct TokenizeResult {
 	std::vector<std::string> str_literals;
 	std::optional<SyntaxError> error;
 
-	static TokenizeResult from_error(SourceLocation loc, const char *msg) noexcept;
+	static TokenizeResult from_error(SourceLocation loc,
+									 const char *msg) noexcept;
 };
 
-TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept;
+TokenizeResult tokenize(std::string_view source,
+						NameTable &name_table) noexcept;
 
 } // namespace cypheri
 

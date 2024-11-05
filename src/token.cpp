@@ -1,11 +1,12 @@
 #include "cypheri/token.hpp"
 #include <cctype>
-#include <limits>
 #include <cstdlib>
+#include <limits>
 
 namespace cypheri {
 
-Token::Token(TokenType type, SourceLocation loc) noexcept : type(type), loc(loc) {}
+Token::Token(TokenType type, SourceLocation loc) noexcept
+	: type(type), loc(loc) {}
 
 Token Token::from_integer(SourceLocation loc, uint64_t value) noexcept {
 	Token token(TK("(integer)"), loc);
@@ -31,17 +32,17 @@ Token Token::from_string(SourceLocation loc, size_t idx) noexcept {
 	return token;
 }
 
-TokenizeResult TokenizeResult::from_error(SourceLocation loc, const char *msg) noexcept {
-	return TokenizeResult{
-		.error = SyntaxError(msg, loc)
-	};
+TokenizeResult TokenizeResult::from_error(SourceLocation loc,
+										  const char *msg) noexcept {
+	return TokenizeResult{.error = SyntaxError(msg, loc)};
 }
 
 namespace {
 
 class SourceStream {
 public:
-	SourceStream(std::string_view source) noexcept : source(source), pos{0}, cur_loc{1, 1} {}
+	SourceStream(std::string_view source) noexcept
+		: source(source), pos{0}, cur_loc{1, 1} {}
 
 	char peek() const noexcept {
 		return source[pos];
@@ -82,7 +83,10 @@ public:
 	}
 
 	std::string_view consumeIdentifier() noexcept {
-		pos -= 1; // consume() already advanced the position
+		// consume() already advanced the position, rollback
+		pos -= 1;
+		cur_loc.column -= 1;
+
 		size_t len = 0, begin = pos;
 		char c = peek();
 		while (!eof() && (std::isalnum(c) || c == '_')) {
@@ -94,44 +98,44 @@ public:
 	}
 
 	std::string consumeString() noexcept {
-	    // The opening quote is already consumed
+		// The opening quote is already consumed
 		std::string res;
 		bool escaped = false;
 		while (!eof()) {
 			char c = consume();
 			if (escaped) {
-			    switch (c) {
-			    case 'n':
-				    res += '\n';
-				    break;
-			    case 't':
-				    res += '\t';
-				    break;
-			    case 'r':
-				    res += '\r';
-				    break;
-			    case 'b':
-				    res += '\b';
-				    break;
-			    case 'f':
-				    res += '\f';
-				    break;
-			    case '"':
-				    res += '"';
-				    break;
-			    case '\'':
-				    res += '\'';
-				    break;
-			    case '\\':
-				    res += '\\';
-				    break;
+				switch (c) {
+				case 'n':
+					res += '\n';
+					break;
+				case 't':
+					res += '\t';
+					break;
+				case 'r':
+					res += '\r';
+					break;
+				case 'b':
+					res += '\b';
+					break;
+				case 'f':
+					res += '\f';
+					break;
+				case '"':
+					res += '"';
+					break;
+				case '\'':
+					res += '\'';
+					break;
+				case '\\':
+					res += '\\';
+					break;
 				// TODO: \0, \x, \u
-			    default:
+				default:
 					// unknown escape sequence, keep it as is
 					res += c;
 					break;
-			    }
-			    escaped = false;
+				}
+				escaped = false;
 			} else {
 				switch (c) {
 				case '"':
@@ -208,6 +212,8 @@ TokenType match_keyword(std::string_view str) noexcept {
 			return TK("Function");
 		} else if (str == "For") {
 			return TK("For");
+		} else if (str == "FALSE") {
+			return TK("FALSE");
 		}
 		break;
 	case 'I':
@@ -230,6 +236,8 @@ TokenType match_keyword(std::string_view str) noexcept {
 	case 'N':
 		if (str == "New") {
 			return TK("New");
+		} else if (str == "NULL") {
+			return TK("NULL");
 		}
 		break;
 	case 'R':
@@ -251,6 +259,8 @@ TokenType match_keyword(std::string_view str) noexcept {
 			return TK("Try");
 		} else if (str == "Typeof") {
 			return TK("Typeof");
+		} else if (str == "TRUE") {
+			return TK("TRUE");
 		}
 		break;
 	case '_':
@@ -261,12 +271,13 @@ TokenType match_keyword(std::string_view str) noexcept {
 	default:
 		break;
 	}
-	return TK("(error)");
+	return TK("(identifier)");
 }
 
 } // namespace
 
-TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept {
+TokenizeResult tokenize(std::string_view source,
+						NameTable &name_table) noexcept {
 	TokenizeResult res;
 	auto &tokens = res.tokens;
 	SourceStream stream(source);
@@ -401,7 +412,7 @@ TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept
 		case '{':
 			tokens.emplace_back(TK("{"), loc);
 			break;
-		case '}':	
+		case '}':
 			tokens.emplace_back(TK("}"), loc);
 			break;
 		case ',':
@@ -422,7 +433,8 @@ TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept
 			break;
 		case '"':
 			res.str_literals.push_back(stream.consumeString());
-			tokens.push_back(Token::from_string(loc, res.str_literals.size() - 1));
+			tokens.push_back(
+				Token::from_string(loc, res.str_literals.size() - 1));
 			break;
 		default:
 			if (std::isdigit(c)) {
@@ -443,17 +455,19 @@ TokenizeResult tokenize(std::string_view source, NameTable& name_table) noexcept
 					x = stream.peek();
 				}
 				if (overflow) {
-					return TokenizeResult::from_error(loc, "Integer literal overflow");
+					return TokenizeResult::from_error(
+						loc, "Integer literal overflow");
 				} else {
 					tokens.push_back(Token::from_integer(loc, val));
 				}
 			} else if (std::isalpha(c) || c == '_') {
 				std::string_view id = stream.consumeIdentifier();
 				TokenType keyword = match_keyword(id);
-				if (keyword != TK("(error)")) {
+				if (keyword != TK("(identifier)")) {
 					tokens.emplace_back(keyword, loc);
 				} else {
-					tokens.push_back(Token::from_identifier(loc, name_table.get_id_or_insert(id)));
+					tokens.push_back(Token::from_identifier(
+						loc, name_table.get_id_or_insert(id)));
 				}
 			} else {
 				return TokenizeResult::from_error(loc, "Unexpected character");
