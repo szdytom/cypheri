@@ -1,0 +1,16 @@
+Function add(a, b)
+	Return a + b;
+End
+
+Function onBoot()
+	Declare a, b, res;
+	a = 10;
+	b = 20;
+	If a > b Then
+		res = add(2 * a, b);
+	Else
+		res = add(a, 2 * b);
+	End
+	print("10 + 20 = " + res);
+	Return;
+End
