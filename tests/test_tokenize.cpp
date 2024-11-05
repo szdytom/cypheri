@@ -1,10 +1,10 @@
-#include "cypheri/token.hpp"
 #include "cypheri/errors.hpp"
-#include <string>
-#include <iostream>
+#include "cypheri/token.hpp"
 #include <format>
+#include <iostream>
+#include <string>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	if (argc >= 2) {
 		freopen(argv[1], "r", stdin);
 	}
@@ -23,13 +23,15 @@ int main(int argc, char** argv) {
 	cypheri::NameTable name_table;
 	auto tk_res = cypheri::tokenize(source, name_table);
 	if (tk_res.error.has_value()) {
-		std::cout << std::format("Error: \n{}", tk_res.error.value()) << std::endl;
+		std::cout << std::format("Error: \n{}", tk_res.error.value())
+				  << std::endl;
 		return 0;
 	}
 
 	// Print tokens
-	for (auto& tk : tk_res.tokens) {
-		std::cout << std::format("{}:\t{{ type=\"{}\"", tk.loc, cypheri::TOKEN_TYPE_NAMES[tk.type]);
+	for (auto &tk : tk_res.tokens) {
+		std::cout << std::format("{}:\t{{ type=\"{}\"", tk.loc,
+								 cypheri::TOKEN_TYPE_NAMES[tk.type]);
 
 		switch (tk.type) {
 		case cypheri::TK("(integer)"):
@@ -39,10 +41,12 @@ int main(int argc, char** argv) {
 			std::cout << ", value=" << tk.num;
 			break;
 		case cypheri::TK("(string)"):
-			std::cout << std::format(", value=\"{}\"", tk_res.str_literals[tk.str_idx]);
+			std::cout << std::format(", value=\"{}\"",
+									 tk_res.str_literals[tk.str_idx]);
 			break;
 		case cypheri::TK("(identifier)"):
-			std::cout << std::format(", value=\"{}\"", name_table.get_name(tk.id));
+			std::cout << std::format(", value=\"{}\"({})",
+									 name_table.get_name(tk.id), tk.id);
 			break;
 		default:
 			break;
@@ -50,6 +54,6 @@ int main(int argc, char** argv) {
 
 		std::cout << " }" << std::endl;
 	}
-	
+
 	return 0;
 }
